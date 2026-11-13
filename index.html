@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flame in Freefall | NASA Space Apps 2026</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+    @keyframes scanline {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(1000%); }
+    }
+    .scan-line {
+      animation: scanline 8s linear infinite;
+    }
+    /* Custom slider styling */
+    input[type=range] {
+      accent-color: #38bdf8;
+    }
+    /* Canvas styling */
+    canvas {
+      image-rendering: auto;
+    }
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.3);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(56, 189, 248, 0.6);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black">
+
+  <!-- TOP APP HEADER / MISSION CONTROL HUD -->
+  <header class="border-b border-cyan-900/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 px-4 py-3 shadow-lg shadow-black/40">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <!-- Title & NASA Badge -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-700 via-indigo-600 to-rose-500 flex items-center justify-center p-0.5 shadow-md shadow-cyan-500/20">
+          <div class="w-full h-full rounded-full bg-slate-950 flex items-center justify-center">
+            <span class="text-xs font-black tracking-widest text-cyan-400">NASA</span>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/60">Space Apps 2026</span>
+            <span class="text-xs font-mono text-amber-400/90 flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block"></span>
+              PSI DATA LINK: ONLINE
+            </span>
+          </div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight bg-gradient-to-r from-white via-cyan-200 to-amber-300 bg-clip-text text-transparent">
+            FLAME IN FREEFALL <span class="text-xs font-normal text-slate-400 ml-2">SI-Powered Microgravity Combustion Insights</span>
+          </h1>
+        </div>
+      </div>
+
+      <!-- Quick Telemetry Bar -->
+      <div class="flex items-center gap-2 md:gap-4 text-xs font-mono bg-slate-950/80 border border-slate-800 rounded-lg px-3 py-1.5">
+        <div>
+          <span class="text-slate-400">GRAVITY:</span>
+          <span id="hud-gravity" class="text-cyan-400 font-bold ml-1">0.00 g</span>
+        </div>
+        <div class="h-3 w-px bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400">O₂ CONC:</span>
+          <span id="hud-o2" class="text-emerald-400 font-bold ml-1">21.0 %</span>
+        </div>
+        <div class="h-3 w-px bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400">FLOW:</span>
+          <span id="hud-flow" class="text-indigo-400 font-bold ml-1">0.05 m/s</span>
+        </div>
+        <div class="h-3 w-px bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400">RISK:</span>
+          <span id="hud-risk" class="text-emerald-400 font-bold ml-1 uppercase">NOMINAL</span>
+        </div>
+      </div>
+
+      <!-- Audio & Fullscreen Actions -->
+      <div class="flex items-center space-x-2">
+        <button id="audio-toggle-btn" class="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs flex items-center gap-1.5 transition">
+          <svg id="audio-icon" class="w-3.5 h-3.5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+          <span id="audio-text">Audio: OFF</span>
+        </button>
+        <button id="reset-sim-btn" class="px-2.5 py-1.5 rounded-lg bg-cyan-900/40 hover:bg-cyan-800/60 text-cyan-300 border border-cyan-700 text-xs flex items-center gap-1 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Reset Sim
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- NAVIGATION TABS -->
+  <nav class="bg-slate-900/60 border-b border-slate-800 px-4 py-2">
+    <div class="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto text-sm">
+      <button class="nav-tab active px-3.5 py-1.5 rounded-lg font-medium text-xs md:text-sm flex items-center gap-2 transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/50" data-tab="tab-sim">
+        <span>🔥</span>
+        <span>Combustion Chamber & Drop Tower</span>
+      </button>
+      <button class="nav-tab px-3.5 py-1.5 rounded-lg font-medium text-xs md:text-sm flex items-center gap-2 transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent" data-tab="tab-si">
+        <span>🧠</span>
+        <span>SI Spacecraft Safety AI</span>
+      </button>
+      <button class="nav-tab px-3.5 py-1.5 rounded-lg font-medium text-xs md:text-sm flex items-center gap-2 transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent" data-tab="tab-data">
+        <span>📊</span>
+        <span>NASA PSI Historical Archive</span>
+      </button>
+      <button class="nav-tab px-3.5 py-1.5 rounded-lg font-medium text-xs md:text-sm flex items-center gap-2 transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent" data-tab="tab-science">
+        <span>🔬</span>
+        <span>Physics & Mission Guide</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: COMBUSTION CHAMBER & DROP TOWER SIM -->
+    <!-- ========================================== -->
+    <section id="tab-sim" class="tab-content block space-y-6">
+      
+      <!-- TOP PRESETS ROW -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 md:p-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            NASA Mission Combustion Presets
+          </span>
+          <span class="text-xs text-slate-400">Click a flight profile to load empirical boundary conditions</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          <button class="preset-btn px-2.5 py-2 rounded-lg bg-slate-800/70 hover:bg-cyan-900/40 text-left border border-slate-700/80 hover:border-cyan-500/60 transition group" data-preset="earth">
+            <div class="text-[11px] text-cyan-400 font-mono">1.00 g</div>
+            <div class="text-xs font-bold text-slate-200 group-hover:text-white">Earth Standard</div>
+            <div class="text-[10px] text-slate-400">Buoyancy dominant</div>
+          </button>
+          <button class="preset-btn px-2.5 py-2 rounded-lg bg-slate-800/70 hover:bg-cyan-900/40 text-left border border-slate-700/80 hover:border-cyan-500/60 transition group" data-preset="iss">
+            <div class="text-[11px] text-indigo-400 font-mono">0.00 g · 0.15m/s</div>
+            <div class="text-xs font-bold text-slate-200 group-hover:text-white">ISS Columbus</div>
+            <div class="text-[10px] text-slate-400">Ventilation airflow</div>
+          </button>
+          <button class="preset-btn px-2.5 py-2 rounded-lg bg-slate-800/70 hover:bg-cyan-900/40 text-left border border-slate-700/80 hover:border-cyan-500/60 transition group" data-preset="droptower">
+            <div class="text-[11px] text-amber-400 font-mono">1g ➔ 0g Dynamic</div>
+            <div class="text-xs font-bold text-slate-200 group-hover:text-white">Glenn Drop Tower</div>
+            <div class="text-[10px] text-slate-400">2.2s Freefall Drop</div>
+          </button>
+          <button class="preset-btn px-2.5 py-2 rounded-lg bg-slate-800/70 hover:bg-cyan-900/40 text-left border border-slate-700/80 hover:border-cyan-500/60 transition group" data-preset="moon">
+            <div class="text-[11px] text-emerald-400 font-mono">0.16 g · 32% O₂</div>
+            <div class="text-xs font-bold text-slate-200 group-hover:text-white">Artemis Base</div>
+            <div class="text-[10px] text-slate-400">Lunar partial-gravity</div>
+          </button>
+          <button class="preset-btn px-2.5 py-2 rounded-lg bg-slate-800/70 hover:bg-cyan-900/40 text-left border border-slate-700/80 hover:border-cyan-500/60 transition group" data-preset="saffire">
+            <div class="text-[11px] text-rose-400 font-mono">0.00 g · 34% O₂</div>
+            <div class="text-xs font-bold text-slate-200 group-hover:text-white">Saffire Spacecraft</div>
+            <div class="text-[10px] text-slate-400">Cygnus fabric fire</div>
+          </button>
+          <button class="preset-btn px-2.5 py-2 rounded-lg bg-slate-800/70 hover:bg-cyan-900/40 text-left border border-slate-700/80 hover:border-cyan-500/60 transition group" data-preset="coolflame">
+            <div class="text-[11px] text-blue-400 font-mono">0.00 g · Quiescent</div>
+            <div class="text-xs font-bold text-slate-200 group-hover:text-white">FLEX Cool Flame</div>
+            <div class="text-[10px] text-slate-400">Low-T invisible burn</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- MAIN SIMULATION SPLIT: CANVAS CHAMBER + CONTROL PANEL -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT: THE COMBUSTION RIG (CANVAS & OVERLAYS) -->
+        <div class="lg:col-span-8 space-y-4">
+          <div class="relative bg-black rounded-xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col">
+            
+            <!-- Chamber Header Controls -->
+            <div class="bg-slate-900/90 border-b border-slate-800 px-4 py-2 flex items-center justify-between text-xs">
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                <span class="font-mono font-semibold tracking-wider text-slate-200">MICRO-G COMBUSTION CHAMBER [CIR-SIM]</span>
+              </div>
+              <div class="flex items-center space-x-3 text-slate-400">
+                <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200">
+                  <input type="checkbox" id="chk-temp-field" class="rounded bg-slate-800 border-slate-700 text-cyan-500" checked>
+                  <span>Temp Field</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200">
+                  <input type="checkbox" id="chk-o2-gradient" class="rounded bg-slate-800 border-slate-700 text-emerald-500" checked>
+                  <span>O₂ Isobars</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200">
+                  <input type="checkbox" id="chk-flow-vectors" class="rounded bg-slate-800 border-slate-700 text-indigo-500" checked>
+                  <span>Flow Vectors</span>
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200">
+                  <input type="checkbox" id="chk-soot" class="rounded bg-slate-800 border-slate-700 text-amber-500" checked>
+                  <span>Soot Cloud</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative w-full aspect-[4/3] bg-gradient-to-b from-slate-950 via-black to-slate-950 flex items-center justify-center overflow-hidden">
+              <canvas id="combustion-canvas" width="800" height="600" class="w-full h-full object-contain"></canvas>
+              
+              <!-- Flight Telemetry HUD Overlay -->
+              <div class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-sm border border-slate-800 rounded-lg p-2.5 text-[11px] font-mono space-y-1 pointer-events-none">
+                <div class="text-cyan-400 font-bold">TELEMETRY RIG #2026-X</div>
+                <div class="text-slate-300">Flame Temp Max: <span id="telemetry-temp" class="text-amber-400 font-bold">1840 K</span></div>
+                <div class="text-slate-300">Diffusion Peclet (Pe): <span id="telemetry-pe" class="text-indigo-400 font-bold">0.42</span></div>
+                <div class="text-slate-300">Richardson (Ri): <span id="telemetry-ri" class="text-emerald-400 font-bold">0.00</span></div>
+                <div class="text-slate-300">Flame Aspect Ratio: <span id="telemetry-aspect" class="text-cyan-300 font-bold">1.02 (Spherical)</span></div>
+                <div class="text-slate-300">Soot Index: <span id="telemetry-soot" class="text-yellow-400 font-bold">Low (Chemiluminescent)</span></div>
+              </div>
+
+              <!-- Drop Tower Freefall Transition Countdown Overlay -->
+              <div id="drop-overlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 hidden z-20">
+                <div class="w-16 h-16 rounded-full border-4 border-amber-500/40 border-t-amber-400 animate-spin mb-4"></div>
+                <div class="text-2xl font-black tracking-widest text-amber-400 uppercase font-mono" id="drop-countdown-text">COUNTDOWN: 3</div>
+                <p class="text-sm text-slate-300 max-w-md mt-2">NASA Glenn 2.2-Second Drop Tower: Releasing payload capsule into evacuated vacuum shaft. Gravity will collapse to 0.0001 g.</p>
+                <div class="w-64 h-2 bg-slate-800 rounded-full mt-4 overflow-hidden">
+                  <div id="drop-progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-cyan-400 w-0 transition-all duration-300"></div>
+                </div>
+              </div>
+
+              <!-- Cool Flame Mode Indicator Badge -->
+              <div id="cool-flame-badge" class="absolute top-3 right-3 bg-blue-950/80 border border-blue-500/60 text-blue-300 px-3 py-1 rounded-full text-xs font-mono hidden flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-blue-400 animate-ping"></span>
+                <span>COOL FLAME REGIME (LOW-T &lt; 850 K)</span>
+              </div>
+            </div>
+
+            <!-- Bottom Chamber Bar: Drop Action & Extinguish -->
+            <div class="bg-slate-900/90 border-t border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center space-x-2">
+                <button id="btn-drop-experiment" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 flex items-center gap-2 transition active:scale-95">
+                  <svg class="w-4 h-4 text-slate-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                  <span>Release Drop Tower (1G ➔ 0G Freefall)</span>
+                </button>
+                <button id="btn-ignite" class="px-3.5 py-2 rounded-lg bg-cyan-900/60 hover:bg-cyan-800 text-cyan-300 border border-cyan-600/60 font-semibold text-xs flex items-center gap-1.5 transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+                  <span>Re-Ignite</span>
+                </button>
+                <button id="btn-extinguish" class="px-3 py-2 rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-rose-900/60 font-semibold text-xs flex items-center gap-1.5 transition">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                  <span>Inert Quench</span>
+                </button>
+              </div>
+
+              <!-- Play/Pause & Speed -->
+              <div class="flex items-center space-x-2 text-xs">
+                <button id="btn-pause-play" class="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200">
+                  <svg id="play-pause-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+                <span class="text-slate-400 font-mono">SIM RATE: 1.0x</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flame Dynamics Comparison Graphic (1G vs 0G Explained Live) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-amber-400 flex items-center gap-1">
+                  <span>🌍</span> 1G Earth: Buoyancy-Driven
+                </span>
+                <span class="text-[10px] font-mono bg-amber-950/60 text-amber-300 px-1.5 py-0.5 rounded border border-amber-800/40">Teardrop</span>
+              </div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                Hot combustion gases expand, decrease in density, and are pulled upward by buoyant acceleration ($\nabla \rho \times \vec{g}$). Fresh oxygen rushes into the base at 1-2 m/s, accelerating combustion and lifting incandescent yellow soot particles upward into a fluttering tip.
+              </p>
+            </div>
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-cyan-400 flex items-center gap-1">
+                  <span>🛰️</span> 0G Freefall: Pure Diffusion
+                </span>
+                <span class="text-[10px] font-mono bg-cyan-950/60 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-800/40">Spherical</span>
+              </div>
+              <p class="text-slate-300 text-[11px] leading-relaxed">
+                With buoyancy neutralized ($g=0$), molecular diffusion rules ($J = -D \nabla C$). The flame is an isotropic, peaceful sphere. Complete combustion produces faint blue chemiluminescence (CH* radicals at 431nm). Without buoyant flow, combustion products linger, potentially starving or sustaining cool flames.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT: LIVE EXPERIMENT CONTROL PANEL & SENSORS -->
+        <div class="lg:col-span-4 space-y-4">
+          
+          <!-- CONTROLS CONTAINER -->
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Physical Boundary Controls
+              </h2>
+              <span class="text-[11px] font-mono text-slate-400">PARAM SLIDERS</span>
+            </div>
+
+            <!-- Gravity Slider -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs font-medium">
+                <span class="text-slate-300">Gravity Level ($g$)</span>
+                <span id="val-gravity" class="text-cyan-400 font-mono font-bold">0.00 g</span>
+              </div>
+              <input type="range" id="slider-gravity" min="0" max="1.5" step="0.01" value="0.00" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>0.00g (Micro-g)</span>
+                <span>0.16g (Moon)</span>
+                <span>0.38g (Mars)</span>
+                <span>1.00g (Earth)</span>
+              </div>
+            </div>
+
+            <!-- Ventilation Airflow Slider -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs font-medium">
+                <span class="text-slate-300">Forced Ventilation Draft ($v$)</span>
+                <span id="val-flow" class="text-indigo-400 font-mono font-bold">0.05 m/s</span>
+              </div>
+              <input type="range" id="slider-flow" min="0" max="0.5" step="0.01" value="0.05" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>0.00 m/s (Quiescent)</span>
+                <span>0.15 m/s (ISS Ducts)</span>
+                <span>0.50 m/s (Blowoff)</span>
+              </div>
+            </div>
+
+            <!-- Oxygen Concentration Slider -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs font-medium">
+                <span class="text-slate-300">Oxygen Mole Fraction ($O_2$)</span>
+                <span id="val-o2" class="text-emerald-400 font-mono font-bold">21.0 %</span>
+              </div>
+              <input type="range" id="slider-o2" min="10" max="40" step="0.5" value="21.0" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>14% (Hypoxic)</span>
+                <span>21% (Earth/ISS)</span>
+                <span>34% (EVA Suit/Saffire)</span>
+              </div>
+            </div>
+
+            <!-- Ambient Pressure Slider -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs font-medium">
+                <span class="text-slate-300">Total Pressure ($P$)</span>
+                <span id="val-pressure" class="text-purple-400 font-mono font-bold">101.3 kPa</span>
+              </div>
+              <input type="range" id="slider-pressure" min="30" max="120" step="1" value="101" class="w-full h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+              <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                <span>34 kPa (Orion/Apollo)</span>
+                <span>70 kPa (Habitat)</span>
+                <span>101.3 kPa (Standard)</span>
+              </div>
+            </div>
+
+            <!-- Fuel Material Selection -->
+            <div class="space-y-1.5">
+              <label class="text-xs font-medium text-slate-300 block">Fuel Sample (NASA Test Material)</label>
+              <select id="select-fuel" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+                <option value="pmma">PMMA (Acrylic Cylinder - SoFIE Rig)</option>
+                <option value="nomex">Nomex / Cotton Blend (Saffire Fabric)</option>
+                <option value="cellulose">Cellulose Card (BASS Experiment)</option>
+                <option value="heptane">Heptane Droplet (FLEX Cool Flame)</option>
+              </select>
+            </div>
+
+          </div>
+
+          <!-- REAL-TIME COMBUSTION DIAGNOSTICS CARD -->
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400">Non-Dimensional Numbers</h3>
+              <span class="text-[10px] font-mono text-slate-400">PHYSICS METRICS</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+              <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                <div class="text-[10px] text-slate-500">GRASHOF (Gr)</div>
+                <div id="metric-gr" class="text-cyan-400 font-bold">0.00e+0</div>
+                <div class="text-[9px] text-slate-400">Buoyancy / Viscosity</div>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                <div class="text-[10px] text-slate-500">RICHARDSON (Ri)</div>
+                <div id="metric-ri" class="text-amber-400 font-bold">0.00</div>
+                <div class="text-[9px] text-slate-400">Natural / Forced Convection</div>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                <div class="text-[10px] text-slate-500">DAMKÖHLER (Da)</div>
+                <div id="metric-da" class="text-emerald-400 font-bold">4.82</div>
+                <div class="text-[9px] text-slate-400">Reaction / Flow Time</div>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800/80">
+                <div class="text-[10px] text-slate-500">SPREAD RATE (Sf)</div>
+                <div id="metric-sf" class="text-rose-400 font-bold">1.45 mm/s</div>
+                <div class="text-[9px] text-slate-400">Flame Front Velocity</div>
+              </div>
+            </div>
+
+            <!-- Flammability Status Bar -->
+            <div class="space-y-1 pt-1">
+              <div class="flex justify-between text-[11px] font-semibold">
+                <span class="text-slate-300">Combustion Stability:</span>
+                <span id="flammability-status-text" class="text-cyan-400">STABLE DIFFUSION FLAME</span>
+              </div>
+              <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                <div id="flammability-bar" class="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-amber-500 w-3/4 transition-all duration-300"></div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 2: SI SPACECRAFT FIRE SAFETY AI -->
+    <!-- ========================================== -->
+    <section id="tab-si" class="tab-content hidden space-y-6">
+      
+      <!-- SI Header Overview -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-900/60 rounded-xl p-5 shadow-2xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-950 border border-indigo-700/60 text-indigo-300 text-xs font-mono mb-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+              NASA Space Apps 2026 Core Challenge: Superintelligence (SI) Engine
+            </div>
+            <h2 class="text-xl md:text-2xl font-bold text-white tracking-tight">
+              Microgravity Fire Hazard Intelligence & Autonomous Response Protocol
+            </h2>
+            <p class="text-sm text-indigo-200/80 mt-1 max-w-3xl">
+              Trained on decades of NASA Physical Sciences Informatics (PSI) data from BASS, SoFIE, Saffire, and FLEX. This neural assessment engine predicts flame persistence limits, smoldering transitions, and automated crew life-safety countermeasures.
+            </p>
+          </div>
+          <button id="btn-run-si-audit" class="px-4 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs tracking-wide shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition active:scale-95 shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Re-Evaluate Current Chamber State
+          </button>
+        </div>
+      </div>
+
+      <!-- SI THREE-COLUMN CARDS -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- CARD 1: RISK ASSESSMENT SCORE -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-mono text-cyan-400">SI MODULE 01</span>
+            <span class="text-xs text-slate-400">PREDICTIVE SEVERITY</span>
+          </div>
+          <div class="text-center py-4">
+            <div id="si-score-ring" class="w-28 h-28 mx-auto rounded-full border-4 border-emerald-500/80 flex flex-col items-center justify-center bg-slate-950/60 shadow-lg shadow-emerald-500/20">
+              <span id="si-risk-score" class="text-3xl font-black text-emerald-400">28</span>
+              <span class="text-[10px] font-mono text-slate-400 uppercase">RISK INDEX / 100</span>
+            </div>
+            <div id="si-risk-level-badge" class="mt-3 inline-block px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800/60">
+              LOW - NOMINAL EQUILIBRIUM
+            </div>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Smoldering Delay:</span>
+              <span id="si-smolder-delay" class="font-mono text-slate-200">14.2 min to transition</span>
+            </div>
+            <div class="flex justify-between py-1 border-b border-slate-800/60">
+              <span class="text-slate-400">Toxicity Index (CO/CO₂):</span>
+              <span id="si-tox-index" class="font-mono text-amber-400">Moderate Accumulation</span>
+            </div>
+            <div class="flex justify-between py-1">
+              <span class="text-slate-400">Detection Confidence:</span>
+              <span class="font-mono text-cyan-400">98.4% (IR + Obscuration)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: EXTINCTION LIMIT PREDICTION -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-mono text-amber-400">SI MODULE 02</span>
+            <span class="text-xs text-slate-400">CRITICAL THRESHOLDS</span>
+          </div>
+          <h4 class="text-sm font-bold text-slate-200">Flammability Boundary Envelope</h4>
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-400">Limiting O₂ Index (LOI):</span>
+                <span id="si-loi-val" class="font-mono text-emerald-400 font-bold">14.8 %</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                <div id="si-loi-bar" class="h-full bg-emerald-400 w-3/5"></div>
+              </div>
+              <span class="text-[10px] text-slate-500">Flame quenches if O₂ drops below this in 0g</span>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-400">Blowoff Convective Velocity:</span>
+                <span id="si-blowoff-val" class="font-mono text-indigo-400 font-bold">0.38 m/s</span>
+              </div>
+              <div class="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden">
+                <div id="si-blowoff-bar" class="h-full bg-indigo-400 w-4/5"></div>
+              </div>
+              <span class="text-[10px] text-slate-500">Forced ventilation rate that exceeds Damköhler threshold</span>
+            </div>
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-400">Quenching Standoff Distance:</span>
+                <span id="si-standoff-val" class="font-mono text-cyan-400 font-bold">4.2 mm</span>
+              </div>
+              <span class="text-[10px] text-slate-500">Thermal boundary layer thickness around fuel</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 3: ACTIONABLE CREW MITIGATION PROTOCOL -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="text-xs font-mono text-rose-400">SI MODULE 03</span>
+            <span class="text-xs text-slate-400">AUTONOMOUS DISPATCH</span>
+          </div>
+          <h4 class="text-sm font-bold text-slate-200">Recommended Flight Actions</h4>
+          <div id="si-protocol-list" class="space-y-2 text-xs">
+            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-start gap-2">
+              <span class="text-emerald-400 font-bold">01</span>
+              <div>
+                <strong class="text-slate-200 block">Maintain Low Airflow (&lt;0.08 m/s)</strong>
+                <span class="text-slate-400 text-[11px]">Prevent oxygen replenishment while avoiding unmixed smoke pockets.</span>
+              </div>
+            </div>
+            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-start gap-2">
+              <span class="text-cyan-400 font-bold">02</span>
+              <div>
+                <strong class="text-slate-200 block">Deploy Fine Water Mist / CO₂</strong>
+                <span class="text-slate-400 text-[11px]">Avoid high-pressure discharge which creates secondary turbulent entrainment.</span>
+              </div>
+            </div>
+            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-start gap-2">
+              <span class="text-amber-400 font-bold">03</span>
+              <div>
+                <strong class="text-slate-200 block">Monitor Cool Flame Recrudescence</strong>
+                <span class="text-slate-400 text-[11px]">Invisible low-temperature reaction may persist after optical flame extinction.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SPACECRAFT CABIN DIGITAL TWIN ARCHITECTURE -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Spacecraft Compartment Digital Twin Scenario Simulator
+        </h3>
+        <p class="text-xs text-slate-400">
+          Select a spacecraft architecture to simulate ventilation isolation, suppression deployment, and cabin atmosphere depressurization:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/60 cursor-pointer transition compartment-card" data-comp="iss-destiny">
+            <div class="font-bold text-slate-200">ISS Destiny Lab</div>
+            <div class="text-[11px] text-slate-400 mt-1">101.3 kPa · 21% O₂ · Micro-g</div>
+            <div class="text-[10px] text-emerald-400 font-mono mt-2">Dampers: OPERATIONAL</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/60 cursor-pointer transition compartment-card" data-comp="orion-capsule">
+            <div class="font-bold text-slate-200">Orion Crew Vehicle</div>
+            <div class="text-[11px] text-slate-400 mt-1">70 kPa · 30% O₂ · Transit Micro-g</div>
+            <div class="text-[10px] text-amber-400 font-mono mt-2">Enriched O₂ Hazard</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/60 cursor-pointer transition compartment-card" data-comp="gateway-habitat">
+            <div class="font-bold text-slate-200">Lunar Gateway HALO</div>
+            <div class="text-[11px] text-slate-400 mt-1">56 kPa · 34% O₂ · High Radiation</div>
+            <div class="text-[10px] text-cyan-400 font-mono mt-2">Automated Halon/N₂ Vent</div>
+          </div>
+          <div class="p-3 rounded-lg bg-slate-950 border border-slate-800 hover:border-cyan-500/60 cursor-pointer transition compartment-card" data-comp="artemis-base">
+            <div class="font-bold text-slate-200">Artemis South Pole Base</div>
+            <div class="text-[11px] text-slate-400 mt-1">56 kPa · 34% O₂ · 0.16g Moon</div>
+            <div class="text-[10px] text-purple-400 font-mono mt-2">Partial Buoyancy Regimes</div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 3: NASA PSI HISTORICAL ARCHIVE -->
+    <!-- ========================================== -->
+    <section id="tab-data" class="tab-content hidden space-y-6">
+      
+      <!-- Archive Banner -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+              <span class="text-cyan-400 font-mono">NASA PSI</span>
+              <span>Physical Sciences Informatics Flight Experiments</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">
+              Curated combustion telemetry datasets from Space Shuttle, International Space Station (ISS), Drop Towers, and Cygnus resupply vehicles.
+            </p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="btn-export-data" class="px-3 py-1.5 rounded bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 text-xs font-mono flex items-center gap-1 transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>Export CSV Telemetry</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- INTERACTIVE DATASET TABLE -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+        <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-300">NASA Flight Combustion Experiments (1995 - 2026)</span>
+          <span class="text-xs text-slate-400 font-mono">Select a row to load parameters into simulation</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-950 text-slate-400 font-mono uppercase text-[11px] border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4">Mission / Program</th>
+                <th class="py-3 px-4">Facility / Platform</th>
+                <th class="py-3 px-4">Fuel Tested</th>
+                <th class="py-3 px-4">Gravity</th>
+                <th class="py-3 px-4">O₂ Range</th>
+                <th class="py-3 px-4">Key Discovery</th>
+                <th class="py-3 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="psi-table-body" class="divide-y divide-slate-800 text-slate-300 font-mono">
+              <!-- Row 1: SoFIE -->
+              <tr class="hover:bg-cyan-950/30 transition cursor-pointer" data-exp="sofie">
+                <td class="py-3 px-4 font-bold text-cyan-300">SoFIE (GEL / MIST)</td>
+                <td class="py-3 px-4 text-slate-400">ISS CIR (Combustion Rack)</td>
+                <td class="py-3 px-4">PMMA / Acrylic Rods</td>
+                <td class="py-3 px-4 text-emerald-400">10⁻⁴ g</td>
+                <td class="py-3 px-4">18% - 35%</td>
+                <td class="py-3 px-4 text-slate-300 font-sans">Flames spread unexpectedly downwind along solid surfaces in low drafts.</td>
+                <td class="py-3 px-4 text-right">
+                  <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-900 text-cyan-300 text-[11px] font-sans">Load Sim</button>
+                </td>
+              </tr>
+              <!-- Row 2: Saffire -->
+              <tr class="hover:bg-cyan-950/30 transition cursor-pointer" data-exp="saffire">
+                <td class="py-3 px-4 font-bold text-amber-300">Saffire (I - VI)</td>
+                <td class="py-3 px-4 text-slate-400">Cygnus Cargo Spacecraft</td>
+                <td class="py-3 px-4">SIBAL Cotton / Nomex</td>
+                <td class="py-3 px-4 text-emerald-400">10⁻⁴ g</td>
+                <td class="py-3 px-4">21% - 34%</td>
+                <td class="py-3 px-4 text-slate-300 font-sans">Large-scale real spacecraft fabric fires burn slower but release stubborn soot sheets.</td>
+                <td class="py-3 px-4 text-right">
+                  <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-900 text-cyan-300 text-[11px] font-sans">Load Sim</button>
+                </td>
+              </tr>
+              <!-- Row 3: FLEX -->
+              <tr class="hover:bg-cyan-950/30 transition cursor-pointer" data-exp="flex">
+                <td class="py-3 px-4 font-bold text-blue-300">FLEX &amp; FLEX-2</td>
+                <td class="py-3 px-4 text-slate-400">ISS CIR Droplet Chamber</td>
+                <td class="py-3 px-4">Heptane / Decane Droplets</td>
+                <td class="py-3 px-4 text-emerald-400">10⁻⁴ g</td>
+                <td class="py-3 px-4">21%</td>
+                <td class="py-3 px-4 text-slate-300 font-sans">Historic discovery of "Cool Flames": invisible combustion under 800 K.</td>
+                <td class="py-3 px-4 text-right">
+                  <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-900 text-cyan-300 text-[11px] font-sans">Load Sim</button>
+                </td>
+              </tr>
+              <!-- Row 4: BASS -->
+              <tr class="hover:bg-cyan-950/30 transition cursor-pointer" data-exp="bass">
+                <td class="py-3 px-4 font-bold text-indigo-300">BASS / BASS-II</td>
+                <td class="py-3 px-4 text-slate-400">Microgravity Science Glovebox</td>
+                <td class="py-3 px-4">Cellulose &amp; Flat Plastics</td>
+                <td class="py-3 px-4 text-emerald-400">10⁻⁴ g</td>
+                <td class="py-3 px-4">16% - 21%</td>
+                <td class="py-3 px-4 text-slate-300 font-sans">Extinction limits are U-shaped: weak flows sustain flames that die in dead air.</td>
+                <td class="py-3 px-4 text-right">
+                  <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-900 text-cyan-300 text-[11px] font-sans">Load Sim</button>
+                </td>
+              </tr>
+              <!-- Row 5: ACME -->
+              <tr class="hover:bg-cyan-950/30 transition cursor-pointer" data-exp="acme">
+                <td class="py-3 px-4 font-bold text-rose-300">ACME / CFI</td>
+                <td class="py-3 px-4 text-slate-400">ISS CIR Gaseous Burner</td>
+                <td class="py-3 px-4">Methane / Ethylene Gas</td>
+                <td class="py-3 px-4 text-emerald-400">10⁻⁴ g</td>
+                <td class="py-3 px-4">15% - 40%</td>
+                <td class="py-3 px-4 text-slate-300 font-sans">Spherical laminar diffusion flames eliminate soot lift, isolating radical kinetics.</td>
+                <td class="py-3 px-4 text-right">
+                  <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-900 text-cyan-300 text-[11px] font-sans">Load Sim</button>
+                </td>
+              </tr>
+              <!-- Row 6: Glenn Drop Tower -->
+              <tr class="hover:bg-cyan-950/30 transition cursor-pointer" data-exp="glenn">
+                <td class="py-3 px-4 font-bold text-yellow-300">Glenn Zero-G Drop Facility</td>
+                <td class="py-3 px-4 text-slate-400">132m Vacuum Drop Tower</td>
+                <td class="py-3 px-4">Candle Wax / Ethanol</td>
+                <td class="py-3 px-4 text-emerald-400">10⁻⁵ g (5.18s)</td>
+                <td class="py-3 px-4">21%</td>
+                <td class="py-3 px-4 text-slate-300 font-sans">Transition dynamics: instant collapse of buoyant plume within 120 milliseconds.</td>
+                <td class="py-3 px-4 text-right">
+                  <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-cyan-900 text-cyan-300 text-[11px] font-sans">Load Sim</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- CHARTS & EMPIRICAL CORRELATIONS -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- FLAMMABILITY BOUNDARY ENVELOPE (CANVAS CHART) -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400">
+              NASA Flammability Boundary: O₂ Concentration vs Airflow Velocity
+            </h3>
+            <span class="text-[10px] font-mono text-slate-400">U-CURVE THEORY</span>
+          </div>
+          <div class="relative w-full h-64 bg-slate-950 rounded-lg border border-slate-800 p-2">
+            <canvas id="chart-flammability" width="500" height="240" class="w-full h-full"></canvas>
+          </div>
+          <p class="text-[11px] text-slate-400">
+            Note the counter-intuitive microgravity corridor: In quiescent air (0.0 m/s), flames self-extinguish from combustion product blankets. A slight draft (0.05 m/s) *reignites* the flame. High draft (&gt;0.35 m/s) blows it off.
+          </p>
+        </div>
+
+        <!-- FLAME SPREAD RATE VS GRAVITY (CANVAS CHART) -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400">
+              Flame Spread Velocity ($S_f$) vs Gravitational Acceleration ($g$)
+            </h3>
+            <span class="text-[10px] font-mono text-slate-400">MULTI-GRAVITY</span>
+          </div>
+          <div class="relative w-full h-64 bg-slate-950 rounded-lg border border-slate-800 p-2">
+            <canvas id="chart-gravity-spread" width="500" height="240" class="w-full h-full"></canvas>
+          </div>
+          <p class="text-[11px] text-slate-400">
+            Partial gravity regimes (Moon 0.16g, Mars 0.38g) exhibit peak hazards: weak buoyancy does not lift heat away fast enough, but provides sufficient circulation to fan continuous fire growth.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 4: PHYSICS & MISSION GUIDE -->
+    <!-- ========================================== -->
+    <section id="tab-science" class="tab-content hidden space-y-6">
+      
+      <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-xl space-y-4">
+        <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          <span>🔬</span>
+          <span>Scientific Guide: Understanding Combustion in Freefall</span>
+        </h2>
+        <p class="text-sm text-slate-300 leading-relaxed">
+          Fire on Earth is so familiar that we mistake buoyancy-driven artifacts for fundamental combustion physics. When gravitational acceleration is eliminated during freefall, fire reveals its pure, diffusion-governed molecular behavior.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+          
+          <div class="p-4 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-cyan-950 text-cyan-400 flex items-center justify-center font-bold text-sm">1</div>
+            <h4 class="text-sm font-bold text-slate-200">The Death of Buoyancy</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              On Earth, buoyant force density is $F_b = (\rho_\infty - \rho_f) g$. Because combustion gases reach 1800K, their density drops by ~80%, rocketing upward at 2-3 m/s. In freefall ($g=0$), buoyant force vanishes identically. There is no "up" or "down" for the fire.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-950 text-indigo-400 flex items-center justify-center font-bold text-sm">2</div>
+            <h4 class="text-sm font-bold text-slate-200">Pure Molecular Diffusion</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Without convection, mass transfer operates purely via Fick's Second Law: $\frac{\partial C}{\partial t} = D \nabla^2 C$. Because diffusion is isotropic (equal in all radial directions), flames naturally organize into perfect spheres.
+            </p>
+          </div>
+
+          <div class="p-4 rounded-lg bg-slate-950 border border-slate-800 space-y-2">
+            <div class="w-8 h-8 rounded-full bg-amber-950 text-amber-400 flex items-center justify-center font-bold text-sm">3</div>
+            <h4 class="text-sm font-bold text-slate-200">The Cool Flame Paradox</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              First verified in the NASA FLEX project on the ISS, large hydrocarbon droplets whose visible flame extinguished continued burning without visible light or soot at 200°C–400°C. This low-temperature oxidation is a critical hidden risk for deep-space habitats.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- MATHEMATICAL FOUNDATION -->
+        <div class="p-5 rounded-lg bg-slate-950 border border-slate-800 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-400 font-mono">
+            Governing Dimensionless Groups in Spacecraft Fire Safety
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono text-slate-300">
+            <div class="space-y-1">
+              <strong class="text-white block font-sans">Richardson Number ($Ri$)</strong>
+              <div class="text-cyan-300">$$Ri = \frac{Gr}{Re^2} = \frac{g \beta (T_f - T_\infty) L}{v^2}$$</div>
+              <p class="text-slate-400 text-[11px] font-sans">
+                Ratios natural buoyancy to forced ventilation. On Earth, $Ri \gg 1$ (buoyancy dominates). In ISS ventilation ducts ($v \sim 0.1\text{ m/s}, g \sim 0$), $Ri \approx 0$, proving forced airflow governs flame spread.
+              </p>
+            </div>
+            <div class="space-y-1">
+              <strong class="text-white block font-sans">Damköhler Number ($Da$)</strong>
+              <div class="text-amber-300">$$Da = \frac{\tau_{\text{flow}}}{\tau_{\text{chem}}} = \frac{L / v}{1 / (A [O_2]^n e^{-E_a/RT})}$$</div>
+              <p class="text-slate-400 text-[11px] font-sans">
+                Ratios flow residence time to chemical reaction time. If ventilation draft is too fast ($Da < Da_{\text{crit}}$), convective heat loss exceeds chemical heat generation, causing blowoff extinction.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- NASA SPACE APPS 2026 SUBMISSION CHECKLIST -->
+        <div class="p-4 rounded-lg bg-indigo-950/40 border border-indigo-900/60 space-y-2 text-xs">
+          <h4 class="font-bold text-indigo-300 flex items-center gap-1.5">
+            <span>🚀</span> NASA Space Apps Challenge Alignment
+          </h4>
+          <ul class="list-disc list-inside text-indigo-200/90 space-y-1 text-[11px]">
+            <li><strong>Challenge:</strong> "Flame in Freefall: SI-Powered Fire Safety Insights from Microgravity Combustion Data"</li>
+            <li><strong>Core Objective:</strong> Provide interactive simulation and automated AI safety intelligence bridging legacy PSI datasets with Moon/Mars exploration standards.</li>
+            <li><strong>Missions Covered:</strong> SoFIE, Saffire I-VI, BASS, BASS-II, FLEX, ACME, and Glenn Zero-G Drop Facility.</li>
+            <li><strong>Impact:</strong> Informs autonomous fire suppression thresholds for Lunar Gateway, Artemis Basecamp, and Mars Transit vehicles.</li>
+          </ul>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 bg-slate-950/80 text-xs text-slate-500 py-4 px-4 text-center">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        NASA Space Apps Challenge 2026 · Flame in Freefall Interactive Demo
+      </div>
+      <div class="font-mono text-[11px] text-slate-400">
+        Engineered with HTML5 Canvas, Web Audio API &amp; Microgravity Physics Engine
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT: SIMULATION ENGINE, DATASETS, AUDIO & SI ANALYTICS -->
+  <!-- ========================================================================= -->
+  <script>
+    /* -------------------------------------------------------------
+       1. GLOBAL STATE & PARAMETERS
+       ------------------------------------------------------------- */
+    const state = {
+      gravity: 0.00,      // g (0 = microgravity, 1.0 = earth)
+      flow: 0.05,         // m/s forced ventilation draft
+      o2: 21.0,           // % oxygen concentration
+      pressure: 101.3,    // kPa
+      fuel: 'pmma',       // 'pmma', 'nomex', 'cellulose', 'heptane'
+      tempMax: 1840,      // Kelvin
+      isBurning: true,
+      isPaused: false,
+      isCoolFlame: false,
+      dropRunning: false,
+      audioMuted: true,
+      activeTab: 'tab-sim',
+      showTempField: true,
+      showO2Gradient: true,
+      showFlowVectors: true,
+      showSoot: true,
+      particles: [],
+      flameRadius: 42,
+      flickerPhase: 0,
+      sootCount: 0
+    };
+
+    /* -------------------------------------------------------------
+       2. WEB AUDIO SYNTHESIZER FOR MISSION CONTROL SFX
+       ------------------------------------------------------------- */
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playBeep(freq = 880, duration = 0.08, type = 'sine') {
+      if (state.audioMuted) return;
+      try {
+        initAudio();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    function playDropClunk() {
+      if (state.audioMuted) return;
+      try {
+        initAudio();
+        // Low rumble impact
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    /* -------------------------------------------------------------
+       3. CANVAS PARTICLES & COMBUSTION PHYSICS SOLVER
+       ------------------------------------------------------------- */
+    const canvas = document.getElementById('combustion-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Fuel sample geometry anchor
+    const burner = {
+      x: canvas.width / 2,
+      y: canvas.height * 0.65,
+      width: 44,
+      height: 18
+    };
+
+    class FlameParticle {
+      constructor(x, y, isSoot = false) {
+        this.reset(x, y, isSoot);
+      }
+
+      reset(x, y, isSoot = false) {
+        this.isSoot = isSoot;
+        this.x = x || (burner.x + (Math.random() - 0.5) * burner.width);
+        this.y = y || (burner.y - Math.random() * 6);
+        this.vx = (Math.random() - 0.5) * 0.8;
+        this.vy = (Math.random() - 0.5) * 0.8;
+        this.life = 0;
+        this.maxLife = isSoot ? 80 + Math.random() * 70 : 35 + Math.random() * 30;
+        this.size = isSoot ? 1.5 + Math.random() * 2 : 3 + Math.random() * 5;
+        this.temp = isSoot ? 1100 : 1600 + Math.random() * 300;
+      }
+
+      update() {
+        this.life++;
+        
+        // Buoyancy acceleration proportional to gravity: upward in 1G
+        const buoyancyForce = state.gravity * 0.18 * ((this.temp - 300) / 1000);
+        this.vy -= buoyancyForce;
+
+        // Forced ventilation draft (horizontal or diagonal flow)
+        this.vx += state.flow * 1.5;
+
+        // Diffusion random walk
+        const diffusion = state.gravity < 0.1 ? 0.9 : 0.4;
+        this.vx += (Math.random() - 0.5) * diffusion;
+        this.vy += (Math.random() - 0.5) * diffusion;
+
+        // Dampening
+        this.vx *= 0.96;
+        this.vy *= 0.96;
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Temperature decay
+        this.temp -= (this.temp - 300) * 0.035;
+
+        return this.life < this.maxLife;
+      }
+
+      draw(c) {
+        const progress = this.life / this.maxLife;
+        const alpha = Math.max(0, 1 - progress);
+
+        if (this.isSoot) {
+          // Yellow-orange-black incandescent soot
+          c.beginPath();
+          c.arc(this.x, this.y, this.size * (1 + progress * 0.5), 0, Math.PI * 2);
+          if (progress < 0.4) {
+            c.fillStyle = `rgba(255, 200, 50, ${alpha * 0.8})`;
+          } else if (progress < 0.7) {
+            c.fillStyle = `rgba(220, 80, 20, ${alpha * 0.6})`;
+          } else {
+            c.fillStyle = `rgba(40, 40, 40, ${alpha * 0.4})`;
+          }
+          c.fill();
+        } else {
+          // Flame gas chemiluminescence vs soot radiation
+          c.beginPath();
+          c.arc(this.x, this.y, this.size * (1 - progress * 0.4), 0, Math.PI * 2);
+          
+          if (state.isCoolFlame) {
+            // Invisible/faint blue cool flame emission
+            c.fillStyle = `rgba(90, 160, 255, ${alpha * 0.35})`;
+          } else if (state.gravity < 0.15) {
+            // Microgravity blue spherical flame (CH* and C2* radicals)
+            if (progress < 0.5) {
+              c.fillStyle = `rgba(56, 189, 248, ${alpha * 0.7})`;
+            } else {
+              c.fillStyle = `rgba(99, 102, 241, ${alpha * 0.4})`;
+            }
+          } else {
+            // Earth 1G yellow-white core to red plume
+            if (progress < 0.3) {
+              c.fillStyle = `rgba(255, 255, 220, ${alpha * 0.9})`;
+            } else if (progress < 0.6) {
+              c.fillStyle = `rgba(251, 146, 60, ${alpha * 0.8})`;
+            } else {
+              c.fillStyle = `rgba(239, 68, 68, ${alpha * 0.5})`;
+            }
+          }
+          c.fill();
+        }
+      }
+    }
+
+    // Initialize particle pool
+    const MAX_PARTICLES = 280;
+    for (let i = 0; i < MAX_PARTICLES; i++) {
+      state.particles.push(new FlameParticle(burner.x, burner.y, i % 4 === 0));
+    }
+
+    /* -------------------------------------------------------------
+       4. MAIN CANVAS RENDERING LOOP
+       ------------------------------------------------------------- */
+    function renderChamber() {
+      if (!state.isPaused) {
+        state.flickerPhase += 0.15;
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 4.1 DRAW COMBUSTION CHAMBER BACKGROUND GRID
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.4)';
+      ctx.lineWidth = 1;
+      const step = 40;
+      for (let x = 0; x < canvas.width; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // 4.2 FIELD VISUALIZATIONS: TEMPERATURE & OXYGEN GRADIENT
+      const centerFlameX = burner.x + (state.flow * 140);
+      let centerFlameY = burner.y - 12;
+
+      // In 1G, center is stretched upwards
+      if (state.gravity > 0.3) {
+        centerFlameY -= (state.gravity * 48);
+      }
+
+      // Calculate dynamic flame geometry
+      // In 0G: Aspect ratio = 1 (perfect circle)
+      // In 1G: Aspect ratio = 3.2 (elongated teardrop)
+      const aspect = 1.0 + state.gravity * 2.2;
+      const rx = 36 * (state.o2 / 21) * (state.isCoolFlame ? 0.7 : 1.0);
+      const ry = rx * aspect;
+
+      // Draw Temperature Field (Gradient glow)
+      if (state.showTempField && state.isBurning) {
+        const radGlow = ctx.createRadialGradient(
+          centerFlameX, centerFlameY, 4,
+          centerFlameX, centerFlameY, Math.max(rx, ry) * 2.6
+        );
+
+        if (state.isCoolFlame) {
+          radGlow.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+          radGlow.addColorStop(0.5, 'rgba(30, 58, 138, 0.12)');
+          radGlow.addColorStop(1, 'rgba(15, 23, 42, 0)');
+        } else if (state.gravity < 0.2) {
+          // Spherical blue microgravity glow
+          radGlow.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+          radGlow.addColorStop(0.25, 'rgba(56, 189, 248, 0.35)');
+          radGlow.addColorStop(0.65, 'rgba(99, 102, 241, 0.18)');
+          radGlow.addColorStop(1, 'rgba(15, 23, 42, 0)');
+        } else {
+          // Earth buoyant yellow/orange glow
+          radGlow.addColorStop(0, 'rgba(255, 250, 200, 0.6)');
+          radGlow.addColorStop(0.3, 'rgba(249, 115, 22, 0.4)');
+          radGlow.addColorStop(0.7, 'rgba(185, 28, 28, 0.15)');
+          radGlow.addColorStop(1, 'rgba(15, 23, 42, 0)');
+        }
+
+        ctx.fillStyle = radGlow;
+        ctx.beginPath();
+        ctx.ellipse(centerFlameX, centerFlameY, rx * 2.4, ry * 2.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Draw Oxygen Depletion Isobars
+      if (state.showO2Gradient && state.isBurning) {
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.4)'; // Emerald dashed line
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(centerFlameX, centerFlameY, rx * 1.6, ry * 1.6, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.2)';
+        ctx.beginPath();
+        ctx.ellipse(centerFlameX, centerFlameY, rx * 2.3, ry * 2.3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.font = '10px monospace';
+        ctx.fillStyle = 'rgba(52, 211, 153, 0.8)';
+        ctx.fillText(`[O₂] ${(state.o2 * 0.7).toFixed(1)}% boundary`, centerFlameX + rx * 1.6 + 6, centerFlameY);
+        ctx.restore();
+      }
+
+      // Draw Convective Velocity Field Vectors
+      if (state.showFlowVectors) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(129, 140, 248, 0.35)'; // Indigo vectors
+        ctx.fillStyle = 'rgba(129, 140, 248, 0.5)';
+        ctx.lineWidth = 1;
+
+        const vSpacing = 70;
+        for (let vx = 60; vx < canvas.width; vx += vSpacing) {
+          for (let vy = 60; vy < canvas.height - 80; vy += vSpacing) {
+            // Compute local vector
+            // 1. Forced flow rightward
+            let u = state.flow * 40;
+            // 2. Buoyancy upward near flame
+            let distToCenter = Math.hypot(vx - centerFlameX, vy - centerFlameY);
+            let v = 0;
+            if (distToCenter < 160 && state.isBurning) {
+              v = -state.gravity * 35 * (1 - distToCenter / 160);
+              // Entrainment inward at bottom in 1G
+              if (vy > centerFlameY && state.gravity > 0.3) {
+                u += (centerFlameX - vx) * 0.08 * state.gravity;
+              }
+            }
+
+            // Draw vector arrow if magnitude > 2
+            const mag = Math.hypot(u, v);
+            if (mag > 1.5) {
+              const len = Math.min(22, mag * 0.8);
+              const angle = Math.atan2(v, u);
+              ctx.beginPath();
+              ctx.moveTo(vx, vy);
+              const endX = vx + Math.cos(angle) * len;
+              const endY = vy + Math.sin(angle) * len;
+              ctx.lineTo(endX, endY);
+              ctx.stroke();
+
+              // Arrowhead
+              ctx.beginPath();
+              ctx.arc(endX, endY, 1.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      // 4.3 DRAW FUEL BURNER / SAMPLE HOLDER
+      ctx.save();
+      // Burner pedestal
+      ctx.fillStyle = '#1e293b';
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(burner.x - burner.width / 2, burner.y, burner.width, burner.height, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      // Fuel rod label
+      ctx.font = '9px monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'center';
+      const fuelNames = {
+        pmma: 'PMMA (ACRYLIC)',
+        nomex: 'NOMEX FABRIC',
+        cellulose: 'CELLULOSE',
+        heptane: 'DROPLET'
+      };
+      ctx.fillText(fuelNames[state.fuel], burner.x, burner.y + 12);
+
+      // Burner glow
+      if (state.isBurning) {
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.arc(burner.x, burner.y + 2, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // 4.4 UPDATE & DRAW PARTICLES
+      if (state.isBurning && !state.isPaused) {
+        // Flickering Kelvin-Helmholtz instability in 1G
+        const flicker = state.gravity > 0.4 ? Math.sin(state.flickerPhase * 2.2) * 4 * state.gravity : 0;
+
+        for (let i = 0; i < state.particles.length; i++) {
+          const p = state.particles[i];
+          const alive = p.update();
+          if (alive) {
+            if (p.isSoot && !state.showSoot) continue;
+            p.draw(ctx);
+          } else {
+            // Spawn new particle from burner with current gravity profile
+            const isSoot = (Math.random() < (state.gravity * 0.35 + 0.05));
+            p.reset(
+              burner.x + (Math.random() - 0.5) * burner.width * 0.8,
+              burner.y - 2,
+              isSoot
+            );
+          }
+        }
+
+        // Draw Chemiluminescent Outer Shell Ring in Microgravity
+        if (state.gravity < 0.25) {
+          ctx.save();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = state.isCoolFlame ? 'rgba(56, 189, 248, 0.4)' : 'rgba(56, 189, 248, 0.85)';
+          ctx.shadowColor = '#38bdf8';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.ellipse(centerFlameX, centerFlameY, rx, rx, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Faint inner core
+          ctx.fillStyle = state.isCoolFlame ? 'rgba(30, 58, 138, 0.2)' : 'rgba(255, 255, 255, 0.6)';
+          ctx.beginPath();
+          ctx.arc(centerFlameX, centerFlameY, 6, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // 4.5 DRAW SCALE BAR & COMPASS
+      ctx.save();
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(30, canvas.height - 25);
+      ctx.lineTo(80, canvas.height - 25);
+      ctx.stroke();
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('10 mm', 38, canvas.height - 30);
+
+      // Gravity vector indicator
+      const gx = canvas.width - 50;
+      const gy = canvas.height - 45;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 18, 0, Math.PI * 2);
+      ctx.strokeStyle = '#334155';
+      ctx.stroke();
+      if (state.gravity > 0.02) {
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 10);
+        ctx.lineTo(gx, gy + 10);
+        ctx.strokeStyle = '#f59e0b';
+        ctx.stroke();
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText('g', gx + 12, gy + 4);
+      } else {
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('0g', gx - 6, gy + 4);
+      }
+      ctx.restore();
+
+      requestAnimationFrame(renderChamber);
+    }
+
+    requestAnimationFrame(renderChamber);
+
+    /* -------------------------------------------------------------
+       5. NON-DIMENSIONAL COMBUSTION COMPUTATIONS & SI METRICS
+       ------------------------------------------------------------- */
+    function updatePhysicsMetrics() {
+      // 1. Grashof Number Gr = g * beta * deltaT * L^3 / nu^2
+      const deltaT = state.tempMax - 300;
+      const L = 0.02; // 20mm characteristic length
+      const nu = 1.5e-5; // kinematic viscosity of air
+      const beta = 1 / 300;
+      const gr = (state.gravity * 9.81 * beta * deltaT * Math.pow(L, 3)) / Math.pow(nu, 2);
+
+      // 2. Reynolds Number Re = v * L / nu
+      const re = Math.max(0.01, (state.flow * L) / nu);
+
+      // 3. Richardson Number Ri = Gr / Re^2
+      const ri = gr / Math.pow(re, 2);
+
+      // 4. Peclet Number Pe = v * L / D
+      const D = 2.0e-5; // molecular diffusivity of O2
+      const pe = (state.flow * L) / D;
+
+      // 5. Damköhler Number Da = tau_flow / tau_chem
+      // tau_chem ~ 1 / ([O2] * P)
+      const da = (0.2 / Math.max(0.02, state.flow)) * (state.o2 / 21) * (state.pressure / 101.3);
+
+      // 6. Flame Spread Rate Sf (mm/s)
+      // Classic NASA BASS/SoFIE empirical curve: peaks at flow ~ 0.08 m/s, drops in pure 0g quiescent or blowoff
+      let sf = 0;
+      if (state.isBurning) {
+        const flowFactor = Math.exp(-Math.pow(state.flow - 0.08, 2) / 0.03);
+        const o2Factor = Math.pow(state.o2 / 21, 1.4);
+        const gravFactor = 0.8 + 0.6 * state.gravity;
+        sf = 1.2 * flowFactor * o2Factor * gravFactor;
+        if (state.isCoolFlame) sf *= 0.35;
+      }
+
+      // Flame aspect ratio
+      const aspect = (1.0 + state.gravity * 2.2).toFixed(2);
+
+      // DOM Updates in Simulation panel
+      document.getElementById('metric-gr').textContent = gr.toExponential(2);
+      document.getElementById('metric-ri').textContent = ri.toFixed(2);
+      document.getElementById('metric-da').textContent = da.toFixed(2);
+      document.getElementById('metric-sf').textContent = sf.toFixed(2) + ' mm/s';
+
+      document.getElementById('telemetry-temp').textContent = state.isBurning ? (state.isCoolFlame ? '780 K' : `${state.tempMax} K`) : '300 K';
+      document.getElementById('telemetry-pe').textContent = pe.toFixed(2);
+      document.getElementById('telemetry-ri').textContent = ri.toFixed(2);
+      document.getElementById('telemetry-aspect').textContent = state.gravity < 0.05 ? `${aspect} (Spherical)` : `${aspect} (Teardrop)`;
+      document.getElementById('telemetry-soot').textContent = state.gravity < 0.15 ? 'Very Low (Chemiluminescent)' : (state.gravity > 0.8 ? 'High (Sooting Plume)' : 'Moderate');
+
+      // Top HUD updates
+      document.getElementById('hud-gravity').textContent = `${state.gravity.toFixed(2)} g`;
+      document.getElementById('hud-o2').textContent = `${state.o2.toFixed(1)} %`;
+      document.getElementById('hud-flow').textContent = `${state.flow.toFixed(2)} m/s`;
+
+      // Flammability status
+      const statusText = document.getElementById('flammability-status-text');
+      const statusHUD = document.getElementById('hud-risk');
+      const bar = document.getElementById('flammability-bar');
+
+      if (!state.isBurning) {
+        statusText.textContent = 'EXTINGUISHED / INERT';
+        statusText.className = 'text-slate-400';
+        statusHUD.textContent = 'QUENCHED';
+        statusHUD.className = 'text-slate-400 font-bold ml-1 uppercase';
+        bar.style.width = '0%';
+      } else if (state.isCoolFlame) {
+        statusText.textContent = 'COOL FLAME REGIME (LOW-T INVISIBLE)';
+        statusText.className = 'text-blue-400 font-bold';
+        statusHUD.textContent = 'COOL FLAME';
+        statusHUD.className = 'text-blue-400 font-bold ml-1 uppercase';
+        bar.style.width = '45%';
+      } else if (da < 1.0) {
+        statusText.textContent = 'BLOWOFF EXTINCTION WARNING';
+        statusText.className = 'text-rose-400 font-bold';
+        statusHUD.textContent = 'BLOWOFF';
+        statusHUD.className = 'text-rose-400 font-bold ml-1 uppercase';
+        bar.style.width = '20%';
+      } else if (state.o2 > 30) {
+        statusText.textContent = 'HIGH ACCELERATION HAZARD (ENRICHED O₂)';
+        statusText.className = 'text-rose-400 font-bold';
+        statusHUD.textContent = 'CRITICAL';
+        statusHUD.className = 'text-rose-400 font-bold ml-1 uppercase';
+        bar.style.width = '95%';
+      } else if (state.gravity < 0.1) {
+        statusText.textContent = 'STABLE DIFFUSION FLAME (MICRO-G)';
+        statusText.className = 'text-cyan-400 font-bold';
+        statusHUD.textContent = 'NOMINAL';
+        statusHUD.className = 'text-emerald-400 font-bold ml-1 uppercase';
+        bar.style.width = '60%';
+      } else {
+        statusText.textContent = 'BUOYANCY FLUTTER CONVECTION (1G)';
+        statusText.className = 'text-amber-400 font-bold';
+        statusHUD.textContent = '1G BUOYANT';
+        statusHUD.className = 'text-amber-400 font-bold ml-1 uppercase';
+        bar.style.width = '80%';
+      }
+
+      // Update SI Engine metrics
+      updateSIAssessment(gr, ri, da, sf);
+    }
+
+    /* -------------------------------------------------------------
+       6. SI FIRE SAFETY ASSESSMENT ENGINE
+       ------------------------------------------------------------- */
+    function updateSIAssessment(gr, ri, da, sf) {
+      if (!state.isBurning) {
+        document.getElementById('si-risk-score').textContent = '0';
+        document.getElementById('si-risk-level-badge').textContent = 'INERT / SAFE';
+        document.getElementById('si-risk-level-badge').className = 'mt-3 inline-block px-3 py-1 rounded-full text-xs font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700';
+        return;
+      }
+
+      // Calculate composite SI risk score (0 to 100)
+      // Factors: O2 level, flow rate fanning, gravity partial hazard, fuel flammability
+      let score = 25;
+      score += (state.o2 - 21) * 2.8; // enriched O2 is dangerous
+      score += state.flow * 50;       // forced air feeds flame
+      if (state.fuel === 'pmma' || state.fuel === 'heptane') score += 15;
+      if (state.gravity > 0.1 && state.gravity < 0.5) score += 20; // partial gravity trap
+      if (state.isCoolFlame) score += 25; // hidden stealth fire
+
+      score = Math.max(5, Math.min(99, Math.round(score)));
+
+      document.getElementById('si-risk-score').textContent = score;
+
+      const ring = document.getElementById('si-score-ring');
+      const badge = document.getElementById('si-risk-level-badge');
+
+      if (score < 40) {
+        ring.className = 'w-28 h-28 mx-auto rounded-full border-4 border-emerald-500/80 flex flex-col items-center justify-center bg-slate-950/60 shadow-lg shadow-emerald-500/20';
+        badge.textContent = 'LOW - NOMINAL EQUILIBRIUM';
+        badge.className = 'mt-3 inline-block px-3 py-1 rounded-full text-xs font-bold uppercase bg-emerald-950/80 text-emerald-400 border border-emerald-800/60';
+      } else if (score < 75) {
+        ring.className = 'w-28 h-28 mx-auto rounded-full border-4 border-amber-500/80 flex flex-col items-center justify-center bg-slate-950/60 shadow-lg shadow-amber-500/20';
+        badge.textContent = 'ELEVATED - HAZARD ACTIVE';
+        badge.className = 'mt-3 inline-block px-3 py-1 rounded-full text-xs font-bold uppercase bg-amber-950/80 text-amber-400 border border-amber-800/60';
+      } else {
+        ring.className = 'w-28 h-28 mx-auto rounded-full border-4 border-rose-500/80 flex flex-col items-center justify-center bg-slate-950/60 shadow-lg shadow-rose-500/20';
+        badge.textContent = 'CRITICAL - CATASTROPHIC PROPAGATION';
+        badge.className = 'mt-3 inline-block px-3 py-1 rounded-full text-xs font-bold uppercase bg-rose-950/80 text-rose-400 border border-rose-800/60';
+      }
+
+      // SI Module 2: Limiting Oxygen Index (LOI)
+      // In 0g with no flow, LOI is higher (~16%), but drops to 13% with slight draft!
+      const loi = (14.0 + (state.flow < 0.03 ? 3.0 : 0.0) - (state.pressure > 100 ? 1.0 : 0)).toFixed(1);
+      document.getElementById('si-loi-val').textContent = `${loi} %`;
+      document.getElementById('si-blowoff-val').textContent = `${(0.32 + state.o2 * 0.005).toFixed(2)} m/s`;
+      document.getElementById('si-standoff-val').textContent = `${(3.5 * Math.pow(Math.max(0.01, state.gravity), -0.2)).toFixed(1)} mm`;
+
+      // SI Module 3: Protocol dynamic updates
+      const protoList = document.getElementById('si-protocol-list');
+      if (score > 75) {
+        protoList.innerHTML = `
+          <div class="p-2.5 rounded bg-rose-950/40 border border-rose-800 flex items-start gap-2">
+            <span class="text-rose-400 font-bold">01</span>
+            <div>
+              <strong class="text-rose-200 block">IMMEDIATE EMERGENCY ISOLATION</strong>
+              <span class="text-slate-300 text-[11px]">Command automatic closure of cabin ventilation dampers. Sever draft flow within 3.0 seconds to deny convective oxygen replenishment.</span>
+            </div>
+          </div>
+          <div class="p-2.5 rounded bg-rose-950/40 border border-rose-800 flex items-start gap-2">
+            <span class="text-amber-400 font-bold">02</span>
+            <div>
+              <strong class="text-slate-200 block">Deploy Automated CO₂ Quench / Fine Mist</strong>
+              <span class="text-slate-300 text-[11px]">Suppress with diffused nozzle array. Do NOT use high velocity blast extinguishers to prevent flamelet aerosol scattering.</span>
+            </div>
+          </div>
+          <div class="p-2.5 rounded bg-rose-950/40 border border-rose-800 flex items-start gap-2">
+            <span class="text-indigo-400 font-bold">03</span>
+            <div>
+              <strong class="text-slate-200 block">Prepare Partial Compartment Venting</strong>
+              <span class="text-slate-300 text-[11px]">If fire does not arrest within 45s, depressurize cabin down to 35 kPa to extinguish gas-phase radical propagation.</span>
+            </div>
+          </div>
+        `;
+      } else {
+        protoList.innerHTML = `
+          <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-start gap-2">
+            <span class="text-emerald-400 font-bold">01</span>
+            <div>
+              <strong class="text-slate-200 block">Maintain Low Airflow (&lt;0.08 m/s)</strong>
+              <span class="text-slate-400 text-[11px]">Prevent oxygen replenishment while avoiding unmixed smoke pockets.</span>
+            </div>
+          </div>
+          <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-start gap-2">
+            <span class="text-cyan-400 font-bold">02</span>
+            <div>
+              <strong class="text-slate-200 block">Deploy Fine Water Mist / CO₂</strong>
+              <span class="text-slate-400 text-[11px]">Avoid high-pressure discharge which creates secondary turbulent entrainment.</span>
+            </div>
+          </div>
+          <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-start gap-2">
+            <span class="text-amber-400 font-bold">03</span>
+            <div>
+              <strong class="text-slate-200 block">Monitor Cool Flame Recrudescence</strong>
+              <span class="text-slate-400 text-[11px]">Invisible low-temperature reaction may persist after optical flame extinction.</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    /* -------------------------------------------------------------
+       7. DROP TOWER SIMULATOR SEQUENCE (1G -> 0G FREEFALL)
+       ------------------------------------------------------------- */
+    function triggerDropTower() {
+      if (state.dropRunning) return;
+      state.dropRunning = true;
+
+      // Start at 1.0G Earth flame
+      state.gravity = 1.00;
+      state.flow = 0.02;
+      document.getElementById('slider-gravity').value = '1.00';
+      document.getElementById('val-gravity').textContent = '1.00 g';
+      updatePhysicsMetrics();
+
+      const overlay = document.getElementById('drop-overlay');
+      const countText = document.getElementById('drop-countdown-text');
+      const pBar = document.getElementById('drop-progress-bar');
+      overlay.classList.remove('hidden');
+
+      let countdown = 3;
+      countText.textContent = `COUNTDOWN: ${countdown}`;
+      pBar.style.width = '10%';
+      playBeep(600, 0.1);
+
+      const countInterval = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          countText.textContent = `COUNTDOWN: ${countdown}`;
+          pBar.style.width = `${(4 - countdown) * 25}%`;
+          playBeep(600, 0.1);
+        } else {
+          clearInterval(countInterval);
+          countText.textContent = 'RELEASE! FREEFALL ACTIVE';
+          pBar.style.width = '100%';
+          playDropClunk();
+          playBeep(1200, 0.3, 'sawtooth');
+
+          // Transition gravity smoothly from 1.00g to 0.00g in 150ms!
+          const startTime = performance.now();
+          const startG = 1.00;
+
+          function animateDrop(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(1.0, elapsed / 250);
+            state.gravity = startG * (1 - progress);
+            document.getElementById('slider-gravity').value = state.gravity.toFixed(2);
+            document.getElementById('val-gravity').textContent = `${state.gravity.toFixed(2)} g`;
+            updatePhysicsMetrics();
+
+            if (progress < 1.0) {
+              requestAnimationFrame(animateDrop);
+            } else {
+              state.gravity = 0.00;
+              document.getElementById('slider-gravity').value = '0.00';
+              document.getElementById('val-gravity').textContent = '0.00 g';
+              updatePhysicsMetrics();
+              
+              setTimeout(() => {
+                overlay.classList.add('hidden');
+                state.dropRunning = false;
+              }, 800);
+            }
+          }
+          requestAnimationFrame(animateDrop);
+        }
+      }, 700);
+    }
+
+    /* -------------------------------------------------------------
+       8. PRESET BUTTONS HANDLERS
+       ------------------------------------------------------------- */
+    const presets = {
+      earth: { gravity: 1.00, flow: 0.02, o2: 21.0, pressure: 101.3, fuel: 'pmma', cool: false },
+      iss: { gravity: 0.00, flow: 0.15, o2: 21.0, pressure: 101.3, fuel: 'cellulose', cool: false },
+      droptower: { triggerDrop: true },
+      moon: { gravity: 0.16, flow: 0.06, o2: 32.0, pressure: 56.0, fuel: 'nomex', cool: false },
+      saffire: { gravity: 0.00, flow: 0.20, o2: 34.0, pressure: 70.0, fuel: 'nomex', cool: false },
+      coolflame: { gravity: 0.00, flow: 0.01, o2: 21.0, pressure: 101.3, fuel: 'heptane', cool: true }
+    };
+
+    function loadPreset(key) {
+      const p = presets[key];
+      if (!p) return;
+
+      if (p.triggerDrop) {
+        triggerDropTower();
+        return;
+      }
+
+      state.gravity = p.gravity;
+      state.flow = p.flow;
+      state.o2 = p.o2;
+      state.pressure = p.pressure;
+      state.fuel = p.fuel;
+      state.isBurning = true;
+      state.isCoolFlame = p.cool;
+
+      // Update UI controls
+      document.getElementById('slider-gravity').value = state.gravity;
+      document.getElementById('val-gravity').textContent = `${state.gravity.toFixed(2)} g`;
+
+      document.getElementById('slider-flow').value = state.flow;
+      document.getElementById('val-flow').textContent = `${state.flow.toFixed(2)} m/s`;
+
+      document.getElementById('slider-o2').value = state.o2;
+      document.getElementById('val-o2').textContent = `${state.o2.toFixed(1)} %`;
+
+      document.getElementById('slider-pressure').value = state.pressure;
+      document.getElementById('val-pressure').textContent = `${state.pressure.toFixed(1)} kPa`;
+
+      document.getElementById('select-fuel').value = state.fuel;
+
+      // Cool flame badge
+      const coolBadge = document.getElementById('cool-flame-badge');
+      if (state.isCoolFlame) {
+        coolBadge.classList.remove('hidden');
+      } else {
+        coolBadge.classList.add('hidden');
+      }
+
+      playBeep(750, 0.05);
+      updatePhysicsMetrics();
+    }
+
+    /* -------------------------------------------------------------
+       9. TAB NAVIGATION & EVENT LISTENERS
+       ------------------------------------------------------------- */
+    document.querySelectorAll('.nav-tab').forEach(tabBtn => {
+      tabBtn.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab').forEach(btn => {
+          btn.className = 'nav-tab px-3.5 py-1.5 rounded-lg font-medium text-xs md:text-sm flex items-center gap-2 transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent';
+        });
+        tabBtn.className = 'nav-tab active px-3.5 py-1.5 rounded-lg font-medium text-xs md:text-sm flex items-center gap-2 transition bg-cyan-500/20 text-cyan-300 border border-cyan-500/50';
+
+        const targetId = tabBtn.getAttribute('data-tab');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById(targetId).classList.remove('hidden');
+        state.activeTab = targetId;
+
+        // Render charts when opening data tab
+        if (targetId === 'tab-data') {
+          renderDataCharts();
+        }
+
+        playBeep(520, 0.04);
+      });
+    });
+
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pKey = btn.getAttribute('data-preset');
+        loadPreset(pKey);
+      });
+    });
+
+    // Slider inputs
+    document.getElementById('slider-gravity').addEventListener('input', e => {
+      state.gravity = parseFloat(e.target.value);
+      document.getElementById('val-gravity').textContent = `${state.gravity.toFixed(2)} g`;
+      updatePhysicsMetrics();
+    });
+
+    document.getElementById('slider-flow').addEventListener('input', e => {
+      state.flow = parseFloat(e.target.value);
+      document.getElementById('val-flow').textContent = `${state.flow.toFixed(2)} m/s`;
+      updatePhysicsMetrics();
+    });
+
+    document.getElementById('slider-o2').addEventListener('input', e => {
+      state.o2 = parseFloat(e.target.value);
+      document.getElementById('val-o2').textContent = `${state.o2.toFixed(1)} %`;
+      updatePhysicsMetrics();
+    });
+
+    document.getElementById('slider-pressure').addEventListener('input', e => {
+      state.pressure = parseFloat(e.target.value);
+      document.getElementById('val-pressure').textContent = `${state.pressure.toFixed(1)} kPa`;
+      updatePhysicsMetrics();
+    });
+
+    document.getElementById('select-fuel').addEventListener('change', e => {
+      state.fuel = e.target.value;
+      if (state.fuel === 'heptane') {
+        state.isCoolFlame = true;
+        document.getElementById('cool-flame-badge').classList.remove('hidden');
+      } else {
+        state.isCoolFlame = false;
+        document.getElementById('cool-flame-badge').classList.add('hidden');
+      }
+      updatePhysicsMetrics();
+      playBeep(650, 0.05);
+    });
+
+    // Checkboxes for visualization layers
+    document.getElementById('chk-temp-field').addEventListener('change', e => {
+      state.showTempField = e.target.checked;
+    });
+    document.getElementById('chk-o2-gradient').addEventListener('change', e => {
+      state.showO2Gradient = e.target.checked;
+    });
+    document.getElementById('chk-flow-vectors').addEventListener('change', e => {
+      state.showFlowVectors = e.target.checked;
+    });
+    document.getElementById('chk-soot').addEventListener('change', e => {
+      state.showSoot = e.target.checked;
+    });
+
+    // Drop Tower button
+    document.getElementById('btn-drop-experiment').addEventListener('click', () => {
+      triggerDropTower();
+    });
+
+    // Ignite & Extinguish buttons
+    document.getElementById('btn-ignite').addEventListener('click', () => {
+      state.isBurning = true;
+      playBeep(900, 0.08);
+      updatePhysicsMetrics();
+    });
+
+    document.getElementById('btn-extinguish').addEventListener('click', () => {
+      state.isBurning = false;
+      playBeep(300, 0.15, 'sawtooth');
+      updatePhysicsMetrics();
+    });
+
+    // Reset button
+    document.getElementById('reset-sim-btn').addEventListener('click', () => {
+      loadPreset('iss');
+    });
+
+    // Pause/Play button
+    document.getElementById('btn-pause-play').addEventListener('click', () => {
+      state.isPaused = !state.isPaused;
+      const icon = document.getElementById('play-pause-icon');
+      if (state.isPaused) {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+      } else {
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+      }
+    });
+
+    // Audio toggle
+    document.getElementById('audio-toggle-btn').addEventListener('click', () => {
+      state.audioMuted = !state.audioMuted;
+      const txt = document.getElementById('audio-text');
+      if (!state.audioMuted) {
+        initAudio();
+        txt.textContent = 'Audio: ON';
+        playBeep(880, 0.1);
+      } else {
+        txt.textContent = 'Audio: OFF';
+      }
+    });
+
+    // Digital twin compartment cards
+    document.querySelectorAll('.compartment-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const cType = card.getAttribute('data-comp');
+        if (cType === 'iss-destiny') {
+          loadPreset('iss');
+        } else if (cType === 'orion-capsule') {
+          state.gravity = 0.00;
+          state.flow = 0.08;
+          state.o2 = 30.0;
+          state.pressure = 70.0;
+          loadPreset('iss');
+          state.o2 = 30.0;
+          state.pressure = 70.0;
+          updatePhysicsMetrics();
+        } else if (cType === 'gateway-habitat') {
+          loadPreset('saffire');
+        } else if (cType === 'artemis-base') {
+          loadPreset('moon');
+        }
+        playBeep(700, 0.08);
+      });
+    });
+
+    // Table rows click to load
+    document.querySelectorAll('#psi-table-body tr').forEach(row => {
+      row.addEventListener('click', () => {
+        const exp = row.getAttribute('data-exp');
+        if (exp === 'sofie') loadPreset('iss');
+        else if (exp === 'saffire') loadPreset('saffire');
+        else if (exp === 'flex') loadPreset('coolflame');
+        else if (exp === 'bass') loadPreset('iss');
+        else if (exp === 'acme') loadPreset('iss');
+        else if (exp === 'glenn') loadPreset('droptower');
+      });
+    });
+
+    // Export CSV
+    document.getElementById('btn-export-data').addEventListener('click', () => {
+      const csvData = [
+        ['Experiment', 'Gravity_g', 'Flow_mps', 'O2_pct', 'Pressure_kPa', 'FlameTemp_K', 'SpreadRate_mmpers'],
+        ['SoFIE_GEL', 0.0001, 0.15, 21.0, 101.3, 1840, 1.45],
+        ['Saffire_IV', 0.0001, 0.20, 34.0, 70.0, 2020, 2.30],
+        ['FLEX_Heptane', 0.0001, 0.01, 21.0, 101.3, 780, 0.42],
+        ['BASS_II_Flat', 0.0001, 0.05, 18.0, 101.3, 1620, 0.88],
+        ['Glenn_Drop_2.2s', 0.00001, 0.00, 21.0, 101.3, 1790, 1.10],
+        ['Current_Sim_Run', state.gravity, state.flow, state.o2, state.pressure, state.tempMax, 1.25]
+      ];
+      const csvContent = 'data:text/csv;charset=utf-8,' + csvData.map(e => e.join(',')).join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', 'nasa_psi_combustion_telemetry.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      playBeep(980, 0.1);
+    });
+
+    /* -------------------------------------------------------------
+       10. CANVASES FOR DATA CHARTS (TAB 3)
+       ------------------------------------------------------------- */
+    let chartsRendered = false;
+
+    function renderDataCharts() {
+      if (chartsRendered) return;
+      chartsRendered = true;
+
+      // 10.1 Flammability U-Curve Chart
+      const c1 = document.getElementById('chart-flammability');
+      if (c1) {
+        const ctx1 = c1.getContext('2d');
+        const w = c1.width;
+        const h = c1.height;
+
+        ctx1.clearRect(0, 0, w, h);
+
+        // Axes
+        ctx1.strokeStyle = '#334155';
+        ctx1.lineWidth = 1.5;
+        ctx1.beginPath();
+        ctx1.moveTo(50, 20);
+        ctx1.lineTo(50, h - 35);
+        ctx1.lineTo(w - 20, h - 35);
+        ctx1.stroke();
+
+        // Labels
+        ctx1.font = '10px monospace';
+        ctx1.fillStyle = '#94a3b8';
+        ctx1.fillText('O₂ Limiting Index (%)', 10, 15);
+        ctx1.fillText('Airflow Draft Velocity v (m/s)', w - 160, h - 10);
+
+        // Ticks
+        ctx1.fillText('30%', 25, 40);
+        ctx1.fillText('20%', 25, 100);
+        ctx1.fillText('10%', 25, 160);
+
+        ctx1.fillText('0.0', 48, h - 22);
+        ctx1.fillText('0.1', 140, h - 22);
+        ctx1.fillText('0.2', 240, h - 22);
+        ctx1.fillText('0.3', 340, h - 22);
+        ctx1.fillText('0.4', 440, h - 22);
+
+        // NASA U-Curve Flammability Boundary
+        // In 0g, at v=0 LOI is high (~24%), dips to minimum at v=0.08 (~14%), then rises at high velocity (blowoff)
+        ctx1.beginPath();
+        ctx1.strokeStyle = '#38bdf8';
+        ctx1.lineWidth = 2.5;
+
+        // Curve points: (v, O2)
+        const curvePoints = [
+          { v: 0.00, o2: 24.5 },
+          { v: 0.03, o2: 17.0 },
+          { v: 0.08, o2: 13.5 },
+          { v: 0.15, o2: 15.2 },
+          { v: 0.25, o2: 19.8 },
+          { v: 0.35, o2: 27.5 },
+          { v: 0.42, o2: 36.0 }
+        ];
+
+        curvePoints.forEach((pt, i) => {
+          const px = 50 + (pt.v / 0.45) * (w - 80);
+          const py = (h - 35) - ((pt.o2 - 5) / 35) * (h - 60);
+          if (i === 0) ctx1.moveTo(px, py);
+          else ctx1.lineTo(px, py);
+        });
+        ctx1.stroke();
+
+        // Shaded Burning Corridor
+        ctx1.lineTo(w - 20, 20);
+        ctx1.lineTo(50, 20);
+        ctx1.closePath();
+        ctx1.fillStyle = 'rgba(56, 189, 248, 0.12)';
+        ctx1.fill();
+
+        // Annotations
+        ctx1.fillStyle = '#38bdf8';
+        ctx1.font = 'bold 11px sans-serif';
+        ctx1.fillText('FLAMMABLE ZONE', 180, 70);
+
+        ctx1.fillStyle = '#ef4444';
+        ctx1.fillText('EXTINGUISHED (QUENCH / BLOWOFF)', 140, 180);
+
+        // Highlight ISS operating draft
+        ctx1.strokeStyle = '#f59e0b';
+        ctx1.setLineDash([3, 3]);
+        const issX = 50 + (0.15 / 0.45) * (w - 80);
+        ctx1.beginPath();
+        ctx1.moveTo(issX, 20);
+        ctx1.lineTo(issX, h - 35);
+        ctx1.stroke();
+        ctx1.fillStyle = '#f59e0b';
+        ctx1.font = '9px monospace';
+        ctx1.fillText('ISS Ducts (0.15 m/s)', issX + 4, 35);
+      }
+
+      // 10.2 Spread Rate vs Gravity Chart
+      const c2 = document.getElementById('chart-gravity-spread');
+      if (c2) {
+        const ctx2 = c2.getContext('2d');
+        const w = c2.width;
+        const h = c2.height;
+
+        ctx2.clearRect(0, 0, w, h);
+
+        // Axes
+        ctx2.strokeStyle = '#334155';
+        ctx2.lineWidth = 1.5;
+        ctx2.beginPath();
+        ctx2.moveTo(50, 20);
+        ctx2.lineTo(50, h - 35);
+        ctx2.lineTo(w - 20, h - 35);
+        ctx2.stroke();
+
+        ctx2.font = '10px monospace';
+        ctx2.fillStyle = '#94a3b8';
+        ctx2.fillText('Spread Rate Sf (mm/s)', 10, 15);
+        ctx2.fillText('Gravity Level g', w - 110, h - 10);
+
+        // Ticks
+        ctx2.fillText('3.0', 25, 40);
+        ctx2.fillText('2.0', 25, 90);
+        ctx2.fillText('1.0', 25, 140);
+
+        ctx2.fillText('0.0g', 48, h - 22);
+        ctx2.fillText('0.16g (Moon)', 110, h - 22);
+        ctx2.fillText('0.38g (Mars)', 210, h - 22);
+        ctx2.fillText('1.0g (Earth)', 380, h - 22);
+
+        // Curve for PMMA Solid Spread
+        ctx2.beginPath();
+        ctx2.strokeStyle = '#f59e0b';
+        ctx2.lineWidth = 2.5;
+
+        const gPoints = [
+          { g: 0.00, sf: 1.1 },
+          { g: 0.16, sf: 2.4 }, // Lunar peak
+          { g: 0.38, sf: 2.1 }, // Mars plateau
+          { g: 0.70, sf: 1.7 },
+          { g: 1.00, sf: 1.45 } // Earth
+        ];
+
+        gPoints.forEach((pt, i) => {
+          const px = 50 + (pt.g / 1.1) * (w - 80);
+          const py = (h - 35) - (pt.sf / 3.5) * (h - 60);
+          if (i === 0) ctx2.moveTo(px, py);
+          else ctx2.lineTo(px, py);
+        });
+        ctx2.stroke();
+
+        // Dots on key celestial points
+        gPoints.forEach(pt => {
+          const px = 50 + (pt.g / 1.1) * (w - 80);
+          const py = (h - 35) - (pt.sf / 3.5) * (h - 60);
+          ctx2.fillStyle = '#fbbf24';
+          ctx2.beginPath();
+          ctx2.arc(px, py, 4, 0, Math.PI * 2);
+          ctx2.fill();
+        });
+
+        // Annotation
+        ctx2.font = '10px sans-serif';
+        ctx2.fillStyle = '#fbbf24';
+        ctx2.fillText('Partial Gravity Peak Danger (Lunar 0.16g)', 130, 60);
+      }
+    }
+
+    // Initialize initial state
+    updatePhysicsMetrics();
+  </script>
+</body>
+</html>
